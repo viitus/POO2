@@ -1,5 +1,6 @@
 public class App {
     public static void main(String[] args) throws Exception {
-        new Tela().configurarJanela();
+        Tela tela = new Tela();
+        tela.configurarJanela();
     }
 }
