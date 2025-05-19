@@ -1,94 +1,40 @@
 import javax.swing.*;
 import java.awt.*;
 
-public class Tela extends JFrame{
+public class Tela extends JFrame {
     private JPanel painel, painelOut, painelIn;
     private JButton[] jbutoes;
     private String simbolos[] = {
-         "AC/C", "+/-", "%", "RaizQ", "/", 
-            "7",   "8", "9",  "X^Y",  "*", 
-            "4",   "5", "6",  "X^2",  "-", 
-            "1",   "2", "3",  "X^3",  "+", 
-            "0",   ",", "X!", "10^X", "="
-        }; 
-
-    private JTextField campoExpressao;
+        "AC/C", "+/-", "%", "RaizQ", "/",
+        "7", "8", "9", "X^Y", "*",
+        "4", "5", "6", "X^2", "-",
+        "1", "2", "3", "X^3", "+",
+        "0", ",", "X!", "10^X", "="
+    };
     private JTextField campoResultado;
+    // Variaveis para armazenar os numeros e o operador
+    private double numeradorA = 0;
+    private double numeradorB = 0;
+    private String operador = "";
+    // Variavel para verificar se o segundo numero esta sendo digitado
+    private boolean aguardandoSegundoNumero = false;
 
-    public Tela(){
+    public Tela() {
         painel = new JPanel();
-        
         painelOut = new JPanel();
         painelIn = new JPanel();
-        
-        campoExpressao = new JTextField(20);
-        campoResultado= new JTextField(20);
-        
+        campoResultado = new JTextField(15);
         jbutoes = new JButton[simbolos.length];
+        // Cria os botoes e adiciona o evento de clique
         for (int i = 0; i < simbolos.length; i++) {
             jbutoes[i] = new JButton(simbolos[i]);
             int index = i;
-
-            jbutoes[i].addActionListener(e -> {
-                String texto = simbolos[index];
-
-                // Botoes numéricos
-                if (texto.matches("[0-9]")) {  
-                    campoResultado.setText(campoResultado.getText() + texto);
-                } 
-                
-                // Botoes de operacoes simples
-                else if (texto.matches("[+\\-*/]")) {
-                    campoExpressao.setText(campoExpressao.getText() + campoResultado.getText() + " " + texto + " ");
-                    campoResultado.setText(""); 
-
-                } 
-                
-                // Botao de Igual
-                else if (texto.equals("=")) { 
-                    String expressaoCompleta = campoExpressao.getText() + campoResultado.getText();
-
-                    try {
-                        double resultado = avaliarExpressao(expressaoCompleta);
-                        campoResultado.setText(String.valueOf(resultado));
-                        campoExpressao.setText(""); 
-                    } catch (Exception ex) {
-                        campoResultado.setText("Erro");
-                    }
-                } 
-                
-                // Botao de apagar
-                else if (texto.equals("AC/C")) {
-                    if (campoResultado.getText().isEmpty()) {
-                        campoExpressao.setText("");
-                    }
-                    campoResultado.setText("");
-                } 
-                
-                // Botao de troca de sinal
-                else if (texto.equals("+/-")) {
-                    String atual = campoResultado.getText();
-                    if (!atual.isEmpty()) {
-                        if (atual.startsWith("-")) {
-                            campoResultado.setText(atual.substring(1));
-                        } else {
-                            campoResultado.setText("-" + atual);
-                        }
-                    }
-                } 
-                
-                //Botao de virgula
-                else if (texto.equals(",")) {
-                    if (!campoResultado.getText().contains(".")) {
-                        campoResultado.setText(campoResultado.getText() + ".");
-                    }
-                }
-                
-            });
+            jbutoes[i].addActionListener(e -> tratarBotao(simbolos[index]));
         }
+        configurarJanela();
     }
 
-    public void configurarJanela(){
+    public void configurarJanela() {
         setVisible(true);
         setTitle("Calculadora");
         setSize(435, 510);
@@ -99,52 +45,128 @@ public class Tela extends JFrame{
         configurarPainel();
     }
 
-    public void configurarPainel(){
-        //configurações painel principal
+    public void configurarPainel() {
+        //painel principal
         painel.setLayout(null);
         painel.setBackground(Color.LIGHT_GRAY);
         painel.add(painelOut);
         painel.add(painelIn);
-        
-        //configurações de tamanho de paineis secundarios
-        painelOut.setBounds(10, 10, 400, 70);
-        painelIn.setBounds(10, 80, 400,380);
-
-        //configurações do painel de Output
-        painelOut.setLayout(new GridLayout(2,1));
-        painelOut.add(campoExpressao);
+        //posicoes
+        painelOut.setBounds(10, 30, 400, 50);
+        painelIn.setBounds(10, 80, 400, 380);
+        //painel de resultado
+        painelOut.setBackground(Color.LIGHT_GRAY);
         painelOut.add(campoResultado);
-
-        campoExpressao.setFont(new Font("Arial", Font.PLAIN, 16));
-        campoExpressao.setHorizontalAlignment(JTextField.RIGHT);
-        campoExpressao.setEditable(false);
-        campoExpressao.setBorder(null);
-        
         campoResultado.setFont(new Font("Arial", Font.BOLD, 24));
         campoResultado.setHorizontalAlignment(JTextField.RIGHT);
         campoResultado.setEditable(false);
-        campoResultado.setBorder(null);
-        
-        //configuração do painel de Input
-        painelIn.setLayout(new GridLayout(5,5));
-        for (int i = 0; i < simbolos.length; i++) {
-            painelIn.add(jbutoes[i]);
+        //painel de botoes
+        painelIn.setLayout(new GridLayout(5, 5));
+        for (JButton botao : jbutoes) {
+            painelIn.add(botao);
         }
-        
     }
 
-    private double avaliarExpressao(String expressao) {
-        // Troca X por * se necessário (ex: se futuramente usar X no botão)
-        expressao = expressao.replaceAll("X", "*");
+    public void tratarBotao(String simbolo) {
+        //botoes de numeros e virgula, apenas adiciona o simbolo ao campo
+        if (simbolo.matches("[0-9]") || simbolo.equals(",")) {
+            if (simbolo.equals(",")) simbolo = ".";
+            campoResultado.setText(campoResultado.getText() + simbolo);
+
+        //Botao de AC/C limpa o campo resultado
+        //se o campo resultado estiver vazio, limpa os valores da memoria
+        } else if (simbolo.equals("AC/C")) {
+            if (!campoResultado.getText().isEmpty()) {
+                campoResultado.setText("");
+            } else {
+                numeradorA = 0;
+                numeradorB = 0;
+                operador = "";
+                aguardandoSegundoNumero = false;
+                campoResultado.setText("");
+            }
+
+        //Botao de igual, calcula o resultado de operacoes simples
+        } else if (simbolo.equals("=")) {
+            if (!operador.isEmpty() && !campoResultado.getText().isEmpty()) {
+                numeradorB = Double.parseDouble(campoResultado.getText());
+                calculaResultado();
+            }
+
+        //Botao de operadores simples    
+        } else if (simbolo.matches("[+\\-*/]")) {           
+            numeradorA = Double.parseDouble(campoResultado.getText());
+            operador = simbolo;
+            aguardandoSegundoNumero = true;
+            campoResultado.setText("");
         
-        // Usa JavaScript para avaliar expressão simples
-        try {
-            return (double) new javax.script.ScriptEngineManager()
-                .getEngineByName("JavaScript")
-                .eval(expressao);
-        } catch (Exception e) {
-            throw new RuntimeException("Erro ao avaliar expressão: " + expressao);
+        } else if (simbolo.equals("X^Y")) {
+            numeradorA = Double.parseDouble(campoResultado.getText());
+            operador = simbolo;
+            aguardandoSegundoNumero = true;
+            campoResultado.setText("");
+
+        } else if (simbolo.equals("%")) {            
+            numeradorA = Double.parseDouble(campoResultado.getText());
+            operador = simbolo;
+            aguardandoSegundoNumero = true;
+            campoResultado.setText("");
+
+        //Botao de operadores especiais - dão o resultado sem precionar o =
+        } else if (simbolo.equals("+/-")) {
+            double valor = Double.parseDouble(campoResultado.getText());
+            campoResultado.setText(String.valueOf(-valor));
+        
+        } else if (simbolo.equals("RaizQ")) {
+            double valor = Double.parseDouble(campoResultado.getText());
+            campoResultado.setText(String.valueOf(Math.sqrt(valor)));
+        
+        } else if (simbolo.equals("X^2")) {
+            double valor = Double.parseDouble(campoResultado.getText());
+            campoResultado.setText(String.valueOf(Math.pow(valor, 2)));
+        
+        } else if (simbolo.equals("X^3")) {
+            double valor = Double.parseDouble(campoResultado.getText());
+            campoResultado.setText(String.valueOf(Math.pow(valor, 3)));
+        
+        } else if (simbolo.equals("X!")) {
+            int valor = Integer.parseInt(campoResultado.getText());
+            int fatorial = 1;
+            for (int i = 1; i <= valor; i++) {
+                fatorial *= i;
+            }
+            campoResultado.setText(String.valueOf(fatorial));
+        
+        } else if (simbolo.equals("10^X")) {
+            double valor = Double.parseDouble(campoResultado.getText());
+            campoResultado.setText(String.valueOf(Math.pow(10, valor)));
+            
+        } else {
+            campoResultado.setText("Erro");
         }
     }
-    
+
+    // Metodo para calcular o resultado de operacoes simples
+    public void calculaResultado() {
+        double resultado = 0;
+        switch (operador) {
+            case "+": resultado = numeradorA + numeradorB; break;
+            case "-": resultado = numeradorA - numeradorB; break;
+            case "*": resultado = numeradorA * numeradorB; break;
+            case "X^Y": resultado = Math.pow(numeradorA, numeradorB); break;
+            case "%": resultado = numeradorA * (numeradorB / 100); break;
+            case "/":
+                if (numeradorB == 0) {
+                    campoResultado.setText("Erro: Divisão por 0");
+                    return;
+                }
+                resultado = numeradorA / numeradorB; break;
+            default: campoResultado.setText("Erro"); return;
+        }
+        campoResultado.setText(String.valueOf(resultado));
+        numeradorA = resultado; 
+        aguardandoSegundoNumero = false;
+    }
+
+
 }
